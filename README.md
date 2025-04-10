@@ -1,87 +1,122 @@
-# Hand Sign Digit Recognition
+# Hand Sign Recognition
 
-This project uses a VGG-style convolutional neural network to recognize hand sign digits (0-9) from images or webcam, using PyTorch.
+A sophisticated application for real-time hand sign and digit recognition using computer vision techniques.
 
-## Setup
+## Features
 
-### Requirements
+- **Multi-model Support**: Uses both VGG and ResNet models for digit classification
+- **YOLOv8 Hand Detection**: Advanced hand detection using YOLOv8 object detection
+- **MediaPipe Integration**: Uses MediaPipe for hand landmark detection
+- **Drawing Canvas**: Draw digits directly using finger tracking 
+- **Modern UI**: Dark-themed, modern interface with responsive design
+- **Real-time Processing**: Performs detection and recognition in real-time
 
-Install the required Python packages:
+## Requirements
 
-```bash
-pip install torch torchvision opencv-python numpy matplotlib scikit-learn pillow
+- Python 3.8+
+- PyTorch
+- OpenCV
+- Ultralytics (YOLOv8)
+- MediaPipe
+- tkinter
+- PIL (Pillow)
+- NumPy
+
+## Installation
+
+1. Clone or download this repository
+2. Install required packages:
 ```
-
-### Dataset Structure
-
-The dataset should be organized in the following structure:
-
+pip install torch torchvision opencv-python ultralytics mediapipe pillow numpy
 ```
-Data/
-    zero/
-        digit_0_001.png
-        digit_0_002.png
-        ...
-    one/
-        digit_1_001.png
-        digit_1_002.png
-        ...
-    # and so on for digits 2-9
-```
+3. Ensure you have tkinter installed:
+   - Windows: Typically included with Python
+   - Linux: `sudo apt-get install python3-tk`
+   - macOS: `brew install python-tk@3.x`
 
 ## Usage
 
-### Training the Model
+### Main Application
 
-To train the model on your dataset, run:
+Run the main application with:
 
-```bash
-python Vgg_train.py
+```
+python interface.py
 ```
 
-This will:
-1. Load images from the Data directory
-2. Preprocess the images
-3. Train a VGG-style CNN model using PyTorch
-4. Save the trained model as `hand_sign_vgg_model.pth`
-5. Also save a TorchScript version for mobile deployment as `hand_sign_model_mobile.pt`
-6. Generate a training history graph as `training_history.png`
+This launches the full interface with both drawing capabilities and real-time hand sign recognition.
 
-### Making Predictions
+### Standalone YOLO Detection
 
-After training, you can use the model to predict digits from:
+For testing just the hand detection functionality:
 
-1. **Webcam**:
-   ```bash
-   python predict.py --webcam
-   ```
-   - Press 'c' to capture and predict
-   - Press 'q' to quit
+```
+python yolo_detector.py
+```
 
-2. **Image file**:
-   ```bash
-   python predict.py --image path/to/your/image.png
-   ```
+Optional arguments:
+- `--model`: Path to YOLO model (default: 'best.pt')
+- `--conf`: Confidence threshold (default: 0.3)
+- `--device`: Device to use for inference (default: auto-detect)
 
-## Model Architecture
+Example:
+```
+python yolo_detector.py --model best.pt --conf 0.4 --device cpu
+```
 
-The model uses a simplified VGG-style architecture:
-- 3 convolutional blocks with increasing filter sizes (32, 64, 128)
-- Each block has 2 convolutional layers followed by max pooling
-- Fully connected layers with dropout for classification
+## Controls and Features
 
-## PyTorch Implementation
+- **Toggle Drawing**: Turn on/off the drawing mode
+- **Clear Canvas**: Clear the drawing canvas
+- **Save Drawing**: Save the drawn digit to the dataset
+- **YOLO Settings**: Adjust confidence threshold and enable/disable detection
+- **Model Selection**: Choose between VGG and ResNet models
+- **Prediction**: Get real-time predictions from the selected model
 
-The implementation uses PyTorch's:
-- `nn.Module` for model definition
-- `DataLoader` for efficient batch loading
-- `torch.optim` for optimization
-- TorchScript for mobile deployment
+## Dataset Structure
 
-## Customization
+The application uses and can add to a dataset with the following structure:
 
-You can adjust parameters in the scripts:
-- `IMG_SIZE`: Change image resolution (default: 64x64)
-- `BATCH_SIZE`: Adjust training batch size
-- `EPOCHS`: Change number of training epochs
-- `DEVICE`: The code automatically uses GPU if available
+```
+Data/
+  zero/
+    digit_0_001.png
+    ...
+  one/
+    digit_1_001.png
+    ...
+  ...
+  nine/
+    digit_9_001.png
+    ...
+```
+
+## Models
+
+- **VGG**: Custom VGG-like architecture for digit recognition
+- **ResNet**: ResNet18-based model for digit recognition
+- **YOLOv8**: Pre-trained model for hand detection (best.pt)
+
+## Bounding Box Color Guide
+
+- **Green**: High confidence detection (>70%)
+- **Yellow**: Medium confidence detection (50-70%)
+- **Red**: Low confidence detection (<50%)
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. **YOLO detection not working**: Make sure the best.pt model exists and ultralytics is properly installed
+2. **Webcam not detected**: Check if your webcam is properly connected and permissions are granted
+3. **Model loading errors**: Ensure all model files are in the correct locations
+
+## License
+
+This project is available for educational and personal use.
+
+## Acknowledgements
+
+- YOLOv8 by Ultralytics
+- MediaPipe by Google
+- PyTorch and the computer vision community

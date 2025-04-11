@@ -1,0 +1,9 @@
+flask==2.2.3
+numpy==1.24.3
+opencv-python==4.7.0.72
+mediapipe==0.9.1.0
+torch==2.0.0
+torchvision==0.15.1
+PyQt5==5.15.9
+PyQtWebEngine==5.15.6
+ultralytics==8.0.0

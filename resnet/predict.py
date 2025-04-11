@@ -9,7 +9,7 @@ import torchvision.models as models
 
 # Constants
 IMG_SIZE = 64  # Must match the size used during training
-MODEL_PATH = 'hand_sign_resnet_model.pth'  # Path to the trained model
+MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'hand_sign_resnet_model.pth'))
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Define ResNet Model

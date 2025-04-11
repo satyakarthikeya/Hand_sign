@@ -8,7 +8,8 @@ import torchvision.transforms as transforms
 
 # Constants
 IMG_SIZE = 64  # Must match the size used during training
-MODEL_PATH = 'hand_sign_vgg_model.pth'  # Path to the trained model
+# Use absolute path to model file in the models directory
+MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'hand_sign_vgg_model.pth'))
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Define VGG Model - need same architecture as training
@@ -78,15 +79,20 @@ def preprocess_image(image):
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
     elif image.shape[2] == 4:  # RGBA
         image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+    
+    # Debug info
+    print(f"Image shape before resize: {image.shape}")
         
     # Resize to expected input size
     image = cv2.resize(image, (IMG_SIZE, IMG_SIZE))
+    print(f"Image shape after resize: {image.shape}")
     
     # Normalize pixel values to [0, 1]
     image = image / 255.0
     
     # Convert to PyTorch tensor and add batch dimension
     image = torch.FloatTensor(image).permute(2, 0, 1).unsqueeze(0)
+    print(f"Tensor shape: {image.shape}")
     
     return image
 
@@ -102,36 +108,64 @@ def predict_digit(image_path=None, image=None):
         Predicted digit and confidence score
     """
     if image_path is not None and os.path.exists(image_path):
+        print(f"Reading image from {image_path}")
         image = cv2.imread(image_path)
+        if image is None:
+            print(f"Failed to read image from {image_path}")
+            return -1, 0.0
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     elif image is None:
         raise ValueError("Either image_path or image must be provided")
     
     # Check if model exists
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Train the model first.")
+        print(f"Model file not found at {MODEL_PATH}. Train the model first.")
+        alternative_path = 'hand_sign_vgg_model.pth'
+        if os.path.exists(alternative_path):
+            print(f"Found model at alternative path: {alternative_path}")
+            model_path = alternative_path
+        else:
+            raise FileNotFoundError(f"Model file not found at {MODEL_PATH} or {alternative_path}")
+    else:
+        model_path = MODEL_PATH
     
     # Load model
-    model = VGGModel(num_classes=10)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-    model.to(DEVICE)
-    model.eval()
+    try:
+        print(f"Loading model from {model_path}")
+        model = VGGModel(num_classes=10)
+        model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+        model.to(DEVICE)
+        model.eval()
+        print("Model loaded successfully")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        raise
     
     # Preprocess the image
-    processed_image = preprocess_image(image)
-    processed_image = processed_image.to(DEVICE)
+    try:
+        processed_image = preprocess_image(image)
+        processed_image = processed_image.to(DEVICE)
+        print(f"Image processed and moved to {DEVICE}")
+    except Exception as e:
+        print(f"Error preprocessing image: {e}")
+        raise
     
     # Make prediction
-    with torch.no_grad():
-        outputs = model(processed_image)
-        probabilities = torch.nn.functional.softmax(outputs, dim=1)
-    
-    # Get the predicted class and confidence
-    predictions = probabilities.cpu().numpy()
-    predicted_class = np.argmax(predictions[0])
-    confidence = float(predictions[0][predicted_class])
-    
-    return predicted_class, confidence
+    try:
+        with torch.no_grad():
+            outputs = model(processed_image)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        
+        # Get the predicted class and confidence
+        predictions = probabilities.cpu().numpy()
+        predicted_class = np.argmax(predictions[0])
+        confidence = float(predictions[0][predicted_class])
+        
+        print(f"Prediction successful: class={predicted_class}, confidence={confidence:.4f}")
+        return predicted_class, confidence
+    except Exception as e:
+        print(f"Error making prediction: {e}")
+        raise
 
 def start_webcam_prediction():
     """
@@ -139,14 +173,26 @@ def start_webcam_prediction():
     """
     # Check if model exists
     if not os.path.exists(MODEL_PATH):
-        print(f"Model file not found at {MODEL_PATH}. Train the model first.")
-        return
+        alternative_path = 'hand_sign_vgg_model.pth'
+        if os.path.exists(alternative_path):
+            print(f"Found model at alternative path: {alternative_path}")
+            model_path = alternative_path
+        else:
+            print(f"Model file not found at {MODEL_PATH} or alternative path. Train the model first.")
+            return
+    else:
+        model_path = MODEL_PATH
         
     # Load model
-    model = VGGModel(num_classes=10)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-    model.to(DEVICE)
-    model.eval()
+    try:
+        print(f"Loading model from {model_path}")
+        model = VGGModel(num_classes=10)
+        model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+        model.to(DEVICE)
+        model.eval()
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return
     
     print("Model loaded successfully. Starting webcam...")
     
@@ -185,27 +231,34 @@ def start_webcam_prediction():
         elif key == ord('c'):
             # Capture and predict
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            processed_image = preprocess_image(rgb_frame)
-            processed_image = processed_image.to(DEVICE)
-            
-            # Make prediction
-            with torch.no_grad():
-                outputs = model(processed_image)
-                probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            
-            predictions = probabilities.cpu().numpy()
-            predicted_class = np.argmax(predictions[0])
-            confidence = float(predictions[0][predicted_class])
-            
-            # Display result
-            result_text = f"Predicted: {predicted_class}, Confidence: {confidence:.2f}"
-            print(result_text)
-            
-            # Show result on image
-            cv2.putText(frame, result_text, (10, 70), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            cv2.imshow("Prediction Result", frame)
-            cv2.waitKey(2000)  # Show for 2 seconds
+            try:
+                processed_image = preprocess_image(rgb_frame)
+                processed_image = processed_image.to(DEVICE)
+                
+                # Make prediction
+                with torch.no_grad():
+                    outputs = model(processed_image)
+                    probabilities = torch.nn.functional.softmax(outputs, dim=1)
+                
+                predictions = probabilities.cpu().numpy()
+                predicted_class = np.argmax(predictions[0])
+                confidence = float(predictions[0][predicted_class])
+                
+                # Display result
+                result_text = f"Predicted: {predicted_class}, Confidence: {confidence:.2f}"
+                print(result_text)
+                
+                # Show result on image
+                cv2.putText(frame, result_text, (10, 70), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.imshow("Prediction Result", frame)
+                cv2.waitKey(2000)  # Show for 2 seconds
+            except Exception as e:
+                print(f"Error during prediction: {e}")
+                cv2.putText(frame, f"Error: {str(e)[:30]}...", (10, 70), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.imshow("Prediction Result", frame)
+                cv2.waitKey(2000)
     
     # Release resources
     cap.release()
@@ -220,16 +273,25 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if args.webcam:
-        start_webcam_prediction()
-    elif args.image:
-        if not os.path.exists(args.image):
-            print(f"Error: Image file not found at {args.image}")
+    try:
+        print(f"Running in directory: {os.getcwd()}")
+        print(f"Looking for model at: {os.path.abspath(MODEL_PATH)}")
+        
+        if args.webcam:
+            start_webcam_prediction()
+        elif args.image:
+            if not os.path.exists(args.image):
+                print(f"Error: Image file not found at {args.image}")
+            else:
+                try:
+                    digit, conf = predict_digit(image_path=args.image)
+                    print(f"Predicted digit: {digit}")
+                    print(f"Confidence: {conf:.2f}")
+                except Exception as e:
+                    print(f"Error predicting from image: {e}")
         else:
-            digit, conf = predict_digit(image_path=args.image)
-            print(f"Predicted digit: {digit}")
-            print(f"Confidence: {conf:.2f}")
-    else:
-        print("Please specify either --image or --webcam")
-        print("Example: python predict.py --webcam")
-        print("Example: python predict.py --image path/to/image.jpg")
+            print("Please specify either --image or --webcam")
+            print("Example: python predict.py --webcam")
+            print("Example: python predict.py --image path/to/image.jpg")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
